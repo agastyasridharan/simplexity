@@ -6,6 +6,7 @@ import jax.numpy as jnp
 
 from simplexity.generative_processes.transition_matrices import (
     coin,
+    composite_mess3,
     days_of_week,
     even_ones,
     fanizza,
@@ -161,6 +162,41 @@ def test_mess3():
     transition_matrices = mess3(x=0.15, a=0.6)
     assert transition_matrices.shape == (3, 3, 3)
     validate_hmm_transition_matrices(transition_matrices)
+
+
+def test_composite_mess3():
+    """Test the composite mess3 transition matrices."""
+    transition_matrices = composite_mess3(x_a=0.05, a_a=0.85, x_b=0.05, a_b=0.65, epsilon=0.05)
+    assert transition_matrices.shape == (3, 6, 6)
+    validate_hmm_transition_matrices(transition_matrices, rtol=1e-5)
+    state_transition_matrix = jnp.sum(transition_matrices, axis=0)
+    stationary_distribution = get_stationary_state(state_transition_matrix.T)
+    assert jnp.allclose(stationary_distribution, jnp.ones(6) / 6, atol=1e-4)
+
+
+def test_composite_mess3_zero_epsilon():
+    """Test that epsilon=0 gives block-diagonal (no driver switching)."""
+    t_a = mess3(0.05, 0.85)
+    t_b = mess3(0.05, 0.65)
+    composite = composite_mess3(x_a=0.05, a_a=0.85, x_b=0.05, a_b=0.65, epsilon=0.0)
+    for obs in range(3):
+        chex.assert_trees_all_close(composite[obs, :3, :3], t_a[obs])
+        chex.assert_trees_all_close(composite[obs, 3:, 3:], t_b[obs])
+        chex.assert_trees_all_close(composite[obs, :3, 3:], jnp.zeros((3, 3)))
+        chex.assert_trees_all_close(composite[obs, 3:, :3], jnp.zeros((3, 3)))
+
+
+def test_composite_mess3_block_structure():
+    """Test that the block structure uses the correct variant per driver state."""
+    t_a = mess3(0.05, 0.85)
+    t_b = mess3(0.05, 0.65)
+    eps = 0.1
+    composite = composite_mess3(x_a=0.05, a_a=0.85, x_b=0.05, a_b=0.65, epsilon=eps)
+    for obs in range(3):
+        chex.assert_trees_all_close(composite[obs, :3, :3], (1 - eps) * t_a[obs])
+        chex.assert_trees_all_close(composite[obs, :3, 3:], eps * t_a[obs])
+        chex.assert_trees_all_close(composite[obs, 3:, :3], eps * t_b[obs])
+        chex.assert_trees_all_close(composite[obs, 3:, 3:], (1 - eps) * t_b[obs])
 
 
 def test_mr_name():

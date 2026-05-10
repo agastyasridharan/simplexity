@@ -1,0 +1,14 @@
+{
+  "full_mse": 0.004347210574304608,
+  "untrained_mse": 0.07129373352449875,
+  "untrained_r2": 0.6975407283651602,
+  "seq_cv_test_mean": 0.004350560831329494,
+  "seq_cv_test_std": 3.055781737625338e-06,
+  "pt_cv_test_mean": 0.004350254484923131,
+  "pt_cv_test_std": 1.7221415718820672e-06,
+  "tsplit_mse_avg": 0.0567595650540896,
+  "tsplit_mse_forward": 0.05541902908692119,
+  "tsplit_mse_reverse": 0.05810010102125801,
+  "shuffle_mse_mean": 0.23568583764033146,
+  "shuffle_mse_std": 1.285485217394142e-06
+}

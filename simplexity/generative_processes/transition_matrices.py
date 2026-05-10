@@ -152,6 +152,40 @@ def mess3(x: float, a: float) -> jax.Array:
     )
 
 
+def composite_mess3(x_a: float, a_a: float, x_b: float, a_b: float, epsilon: float) -> jax.Array:
+    """Creates a transition matrix for the Composite Mess3 Process.
+
+    A hierarchical HMM where a slow-switching driver selects between two Mess3
+    transducer variants. The composite state is (driver, transducer) with 6 states
+    and vocabulary {A, B, C}.
+
+    The block structure encodes: the current driver state determines transducer
+    dynamics at that step, even if the driver switches simultaneously.
+
+    Args:
+        x_a: Mess3 x parameter for variant A.
+        a_a: Mess3 a parameter for variant A.
+        x_b: Mess3 x parameter for variant B.
+        a_b: Mess3 a parameter for variant B.
+        epsilon: Driver switching probability (dwell time ≈ 1/epsilon).
+
+    Returns:
+        jax.Array of shape (3, 6, 6).
+    """
+    assert 0 <= epsilon <= 1
+    t_a = mess3(x_a, a_a)
+    t_b = mess3(x_b, a_b)
+
+    composite = jnp.zeros((3, 6, 6))
+    for obs in range(3):
+        composite = composite.at[obs, :3, :3].set((1 - epsilon) * t_a[obs])
+        composite = composite.at[obs, :3, 3:].set(epsilon * t_a[obs])
+        composite = composite.at[obs, 3:, :3].set(epsilon * t_b[obs])
+        composite = composite.at[obs, 3:, 3:].set((1 - epsilon) * t_b[obs])
+
+    return composite
+
+
 def mr_name(p: float, q: float) -> jax.Array:
     """Creates a transition matrix for the Mr. Dursley/Wonka Process."""
     assert 0 <= p <= 1
@@ -371,6 +405,7 @@ HMM_MATRIX_FUNCTIONS = {
     "even_ones": even_ones,
     "leaky_rrxor": leaky_rrxor,
     "matching_parens": matching_parens,
+    "composite_mess3": composite_mess3,
     "mess3": mess3,
     "mr_name": mr_name,
     "no_consecutive_ones": no_consecutive_ones,

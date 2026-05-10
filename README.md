@@ -4,6 +4,19 @@
 
 A library for exploring sequence prediction models from a Computational Mechanics perspective.
 
+## Composite Mess3 Experiment
+
+An extension of the Shai et al. (NeurIPS 2024) results to hierarchical HMMs. A slow-switching driver (dwell ~20 steps) selects between two Mess3 transducer variants. A 4-layer transformer trained on next-token prediction linearly encodes the full 6D Bayesian posterior in its residual stream (R²=0.982, MSE=0.004).
+
+Key findings:
+- Full belief state recovery confirmed by sequence-level cross-validation (1.00x) and shuffle control (54x)
+- The network allocates deeper computation to the slower inference problem (driver R² grows from 0.56 at L0 to 0.89 at L3)
+- Driver and transducer are encoded in significantly separated subspaces (z=-4.69 vs belief-projection null)
+
+See [`docs/composite_mess3_experiment.md`](docs/composite_mess3_experiment.md) for the full writeup with worked examples and precise numerical results.
+
+**Reproduce on Colab:** upload `notebooks/checkpoints/composite_mess3/` weights and run [`notebooks/colab/composite_mess3_experiment.ipynb`](notebooks/colab/composite_mess3_experiment.ipynb) using the load-checkpoint cell (~20 min, GPU required). To retrain from scratch, run the training cell instead (~1 hour on T4).
+
 ## Codebase Structure
 
 ```
