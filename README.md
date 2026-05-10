@@ -4,18 +4,32 @@
 
 A library for exploring sequence prediction models from a Computational Mechanics perspective.
 
-## Composite Mess3 Experiment
+## Belief State Geometry in Hierarchical Sequential Data
 
-An extension of the Shai et al. (NeurIPS 2024) results to hierarchical HMMs. A slow-switching driver (dwell ~20 steps) selects between two Mess3 transducer variants. A 4-layer transformer trained on next-token prediction linearly encodes the full 6D Bayesian posterior in its residual stream (R²=0.982, MSE=0.004).
+An extension of [Shai et al. (NeurIPS 2024)](https://arxiv.org/abs/2405.15943) from flat HMMs to hierarchical HMMs with multi-timescale latent structure. A slow-switching driver (dwell ~20 steps) selects between two Mess3 transducer variants, creating a 6-state process where the transformer must simultaneously infer a fast variable (transducer state, observable in ~3 tokens) and a slow variable (driver identity, requiring ~15-30 tokens of statistical evidence).
 
-Key findings:
-- Full belief state recovery confirmed by sequence-level cross-validation (1.00x) and shuffle control (54x)
-- The network allocates deeper computation to the slower inference problem (driver R² grows from 0.56 at L0 to 0.89 at L3)
-- Driver and transducer are encoded in significantly separated subspaces (z=-4.69 vs belief-projection null)
+A 4-layer transformer trained on next-token prediction linearly encodes the full 6D Bayesian posterior in its residual stream (R²=0.982, MSE=0.004), with the network allocating deeper computation to the slower inference problem and encoding driver and transducer in significantly separated subspaces.
 
-See [`docs/composite_mess3_experiment.md`](docs/composite_mess3_experiment.md) for the full writeup with worked examples and precise numerical results.
+See [`docs/composite_mess3_experiment.md`](docs/composite_mess3_experiment.md) for the full writeup with worked examples, belief evolution traces, and precise numerical results.
 
-**Reproduce on Colab:** upload `notebooks/checkpoints/composite_mess3/` weights and run [`notebooks/colab/composite_mess3_experiment.ipynb`](notebooks/colab/composite_mess3_experiment.ipynb) using the load-checkpoint cell (~20 min, GPU required). To retrain from scratch, run the training cell instead (~1 hour on T4).
+### What was added
+
+**Library code:**
+- [`simplexity/generative_processes/transition_matrices.py`](simplexity/generative_processes/transition_matrices.py) — added `composite_mess3()` function that constructs the (3, 6, 6) block transition matrix, registered in `HMM_MATRIX_FUNCTIONS`
+- [`tests/generative_processes/test_transition_matrices.py`](tests/generative_processes/test_transition_matrices.py) — three tests: stochasticity/stationarity, block-diagonal recovery at epsilon=0, and block structure verification
+
+**Experiment notebook:**
+- [`notebooks/colab/composite_mess3_experiment.ipynb`](notebooks/colab/composite_mess3_experiment.ipynb) — self-contained Colab notebook (only requires `pip install transformer-lens`). Covers process definition, transformer training (1M steps), four linear probes (full belief, driver/transducer decompositions, timescale separation), five controls (untrained baseline, sequence-level CV, point-level CV, temporal split, shuffle), subspace analysis with belief-projection null distribution, and PCA visualizations
+
+**Trained checkpoint:**
+- [`notebooks/checkpoints/composite_mess3/`](notebooks/checkpoints/composite_mess3/) — trained model weights (`model_weights.pt`, 608 KB), all numerical results (`config.json`, `controls.json`, `subspace.json`, `probe_results.npz`), training history (`training_history.npz`, 1M loss values), and all figures (`figures/`)
+
+**Documentation:**
+- [`docs/composite_mess3_experiment.md`](docs/composite_mess3_experiment.md) — detailed writeup explaining the process, architecture, training, probing methodology, all results, and controls
+
+### Reproduce on Colab
+
+Upload `notebooks/checkpoints/composite_mess3/` as a zip and run the notebook using the load-checkpoint cell (~20 min, GPU required). To retrain from scratch, run the training cell instead (~1 hour on T4).
 
 ## Codebase Structure
 
