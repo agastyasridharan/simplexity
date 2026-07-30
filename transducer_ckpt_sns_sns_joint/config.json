@@ -1,0 +1,33 @@
+{
+  "observe": "joint",
+  "input_mode": "sns",
+  "transducer_mode": "sns",
+  "iid_p1": 0.5,
+  "sns_tr_p0": 0.35,
+  "sns_tr_p1": 0.8,
+  "n_y": 2,
+  "n_x": 2,
+  "n_R": 2,
+  "n_S": 2,
+  "vocab": 4,
+  "n_ctx": 50,
+  "d_model": 64,
+  "n_layers": 4,
+  "n_heads": 1,
+  "d_mlp": 256,
+  "seed": 42,
+  "num_steps_trained": 100000,
+  "entropy_rate": 0.9020853117714409,
+  "final_loss_smoothed": 0.9036610610365867,
+  "d_mu": 0.001135083354697456,
+  "model_ce": 0.9052706360816956,
+  "separability": {
+    "joint": 1.0,
+    "output_only": 0.34285714285714286,
+    "input_only": 1.0
+  },
+  "transducer_r2_concat": 0.992136675078095,
+  "transducer_mse_concat": 0.0018521647158097024,
+  "joint_r2_concat": 0.9852951704371172,
+  "input_r2_concat": 0.9900813628416181
+}
