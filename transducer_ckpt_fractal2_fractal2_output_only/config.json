@@ -1,0 +1,33 @@
+{
+  "observe": "output_only",
+  "input_mode": "fractal2",
+  "transducer_mode": "fractal2",
+  "iid_p1": 0.5,
+  "sns_tr_p0": 0.35,
+  "sns_tr_p1": 0.8,
+  "n_y": 2,
+  "n_x": 2,
+  "n_R": 2,
+  "n_S": 2,
+  "vocab": 2,
+  "n_ctx": 50,
+  "d_model": 64,
+  "n_layers": 4,
+  "n_heads": 1,
+  "d_mlp": 256,
+  "seed": 42,
+  "num_steps_trained": 100000,
+  "entropy_rate": 0.47060294808041897,
+  "final_loss_smoothed": 0.4726782397389412,
+  "d_mu": 0.0006918890659950161,
+  "model_ce": 0.4748477339744568,
+  "separability": {
+    "joint": 1.0,
+    "output_only": 0.05896715907703577,
+    "input_only": 1.0
+  },
+  "transducer_r2_concat": 0.9966018526122588,
+  "transducer_mse_concat": 0.0013980701891114222,
+  "joint_r2_concat": 0.9297608931726644,
+  "input_r2_concat": 0.2804030838428222
+}
