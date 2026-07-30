@@ -6,11 +6,15 @@ import jax.numpy as jnp
 
 from simplexity.generative_processes.transition_matrices import (
     coin,
+    coarse_grained_transducer,
     composite_mess3,
     days_of_week,
+    driven_transducer,
     even_ones,
     fanizza,
     get_stationary_state,
+    iid_sns_transducer,
+    input_only_operator,
     leaky_rrxor,
     matching_parens,
     mess3,
@@ -197,6 +201,71 @@ def test_composite_mess3_block_structure():
         chex.assert_trees_all_close(composite[obs, :3, 3:], eps * t_a[obs])
         chex.assert_trees_all_close(composite[obs, 3:, :3], eps * t_b[obs])
         chex.assert_trees_all_close(composite[obs, 3:, 3:], (1 - eps) * t_b[obs])
+
+
+def test_iid_sns_transducer():
+    """Test the IID-driven SNS transducer joint transition matrices."""
+    transition_matrices = iid_sns_transducer(p_in=0.5, p_0=0.5, p_1=0.5)
+    assert transition_matrices.shape == (4, 2, 2)
+    validate_hmm_transition_matrices(transition_matrices, rtol=1e-5)
+
+
+def test_iid_sns_transducer_marginal_input():
+    """Test that summing the joint kernel over output gives the IID input dynamics.
+
+    With a single input state, summing over the output symbol x and the transducer next-state
+    must reproduce the IID emission probabilities P(y) for each input symbol y.
+    """
+    p_in = 0.3
+    transition_matrices = iid_sns_transducer(p_in=p_in, p_0=0.4, p_1=0.7)
+    # token k = y * 2 + x; sum the (x, S, S') axes to recover P(y).
+    joint_state_token = jnp.sum(transition_matrices, axis=(1, 2))  # (4,)
+    p_y0 = float(joint_state_token[0] + joint_state_token[1])
+    p_y1 = float(joint_state_token[2] + joint_state_token[3])
+    assert jnp.isclose(p_y0, 1 - p_in, atol=1e-6)
+    assert jnp.isclose(p_y1, p_in, atol=1e-6)
+
+
+def test_driven_transducer_kron_structure():
+    """Test that the joint kernel is the Kronecker product of input and transducer kernels."""
+    input_kernels = mess3(0.1, 0.7)  # (3, 3, 3): n_y=3, n_R=3
+    # Transducer over n_y=3 inputs, n_x=2 outputs, n_S=2 states.
+    transducer_kernels = jnp.stack([sns(0.5, 0.5), sns(0.4, 0.6), sns(0.3, 0.7)])  # (3, 2, 2, 2)
+    joint = driven_transducer(input_kernels, transducer_kernels)
+    n_y, n_x = 3, 2
+    assert joint.shape == (n_y * n_x, 3 * 2, 3 * 2)
+    for y in range(n_y):
+        for x in range(n_x):
+            k = y * n_x + x
+            chex.assert_trees_all_close(joint[k], jnp.kron(input_kernels[y], transducer_kernels[y, x]))
+    # Summed over the composite token, the joint must be row-stochastic.
+    state_transition_matrix = jnp.sum(joint, axis=0)
+    chex.assert_trees_all_close(jnp.sum(state_transition_matrix, axis=1), jnp.ones(6), rtol=1e-6)
+
+
+def test_coarse_grained_transducer():
+    """Test the coarse-grained (intermediate-hidden) operator W^(x) = sum_y kron(T^y, U^{x|y})."""
+    input_kernels = mess3(0.1, 0.7)  # (3, 3, 3)
+    transducer_kernels = jnp.stack([sns(0.5, 0.5), sns(0.4, 0.6), sns(0.3, 0.7)])  # (3, 2, 2, 2)
+    w = coarse_grained_transducer(input_kernels, transducer_kernels)
+    n_x = 2
+    assert w.shape == (n_x, 3 * 2, 3 * 2)
+    # Summed over the observed output x, W is the full joint state-transition matrix (row-stochastic).
+    joint = driven_transducer(input_kernels, transducer_kernels)
+    chex.assert_trees_all_close(jnp.sum(w, axis=0), jnp.sum(joint, axis=0), rtol=1e-6)
+    chex.assert_trees_all_close(jnp.sum(jnp.sum(w, axis=0), axis=1), jnp.ones(6), rtol=1e-6)
+
+
+def test_input_only_operator():
+    """Test the coarse-grained (output-hidden) operator reduces to the input HMM dynamics."""
+    input_kernels = mess3(0.1, 0.7)  # (3, 3, 3)
+    transducer_kernels = jnp.stack([sns(0.5, 0.5), sns(0.4, 0.6), sns(0.3, 0.7)])  # (3, 2, 2, 2)
+    v = input_only_operator(input_kernels, transducer_kernels)
+    assert v.shape == (3, 3 * 2, 3 * 2)
+    joint = driven_transducer(input_kernels, transducer_kernels)
+    # Summed over the observed input y, it equals the full joint state-transition matrix.
+    chex.assert_trees_all_close(jnp.sum(v, axis=0), jnp.sum(joint, axis=0), rtol=1e-6)
+    chex.assert_trees_all_close(jnp.sum(jnp.sum(v, axis=0), axis=1), jnp.ones(6), rtol=1e-6)
 
 
 def test_mr_name():

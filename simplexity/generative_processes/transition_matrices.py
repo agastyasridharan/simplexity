@@ -186,6 +186,150 @@ def composite_mess3(x_a: float, a_a: float, x_b: float, a_b: float, epsilon: flo
     return composite
 
 
+def driven_transducer(input_kernels: jax.Array, transducer_kernels: jax.Array) -> jax.Array:
+    """Builds the joint feed-forward transducer kernels over composite (input, output) tokens.
+
+    An autonomous input HMM emits symbols ``y`` (over hidden states ``R``) that drive a
+    transducer; the transducer reads ``y`` and emits ``x`` (over hidden states ``S``). The
+    observable is the composite token ``(y, x)``. The joint hidden state is ``(R, S)`` and the
+    symbol-labeled kernel for token ``(y, x)`` is the Kronecker product of the input kernel for
+    ``y`` and the transducer kernel for ``(y, x)``.
+
+    This is the fully observable, feed-forward case (left HMM -> right transducer) of the
+    epsilon-transducer construction: both the driving symbol ``y`` and the emitted symbol ``x``
+    cross the visibility boundary.
+
+    Args:
+        input_kernels: Input HMM kernels of shape ``(n_y, n_R, n_R)``, indexed by emitted input
+            symbol ``y``. Summed over ``y`` they must be row-stochastic.
+        transducer_kernels: Transducer kernels of shape ``(n_y, n_x, n_S, n_S)``, indexed by
+            ``(input symbol y, output symbol x)``. For each ``y``, summed over ``x`` they must be
+            row-stochastic.
+
+    Returns:
+        jax.Array of shape ``(n_y * n_x, n_R * n_S, n_R * n_S)``. The composite token index is
+        ``k = y * n_x + x``.
+    """
+    n_y = input_kernels.shape[0]
+    n_x = transducer_kernels.shape[1]
+    joint = jnp.stack(
+        [jnp.kron(input_kernels[y], transducer_kernels[y, x]) for y in range(n_y) for x in range(n_x)]
+    )
+    return joint
+
+
+def input_only_operator(input_kernels: jax.Array, transducer_kernels: jax.Array) -> jax.Array:
+    """Builds the coarse-grained (output-hidden) operator for a driven transducer.
+
+    When the transducer output ``x`` is NOT observed and only the intermediate/input symbol ``y``
+    is, the observed process is the input HMM alone. Summing the joint kernel over ``x`` gives
+
+        ``sum_x kron( T_input^(y), T_transducer^(x|y) ) = kron( T_input^(y), sum_x U^(x|y) )``,
+
+    which is separable: the transducer factor ``sum_x U^(x|y)`` is row-stochastic, so the
+    transducer belief becomes uninformative and the belief reduces to the input HMM's MSP.
+
+    Args:
+        input_kernels: Input HMM kernels of shape ``(n_y, n_R, n_R)``.
+        transducer_kernels: Transducer kernels of shape ``(n_y, n_x, n_S, n_S)``.
+
+    Returns:
+        jax.Array of shape ``(n_y, n_R * n_S, n_R * n_S)``, indexed by the observed input ``y``.
+    """
+    n_y = input_kernels.shape[0]
+    n_x = transducer_kernels.shape[1]
+    joint = driven_transducer(input_kernels, transducer_kernels)
+    n_state = joint.shape[1]
+    v = jnp.zeros((n_y, n_state, n_state))
+    for y in range(n_y):
+        for x in range(n_x):
+            v = v.at[y].add(joint[y * n_x + x])
+    return v
+
+
+def _fractal2_kernel(b: float, p: float, q: float) -> jax.Array:
+    """Creates the Fractal-2-state kernels (2 states, 2 outputs), ported from the MSP explorer."""
+    return jnp.array(
+        [
+            [[b, 0.0], [(1 - b) * q, (1 - b) * (1 - q)]],
+            [[(1 - b) * (1 - p), (1 - b) * p], [0.0, b]],
+        ]
+    )
+
+
+def _sns_kernel(p: float) -> jax.Array:
+    """Creates the Simple Nonunifilar Source kernels (2 states, 2 outputs).
+
+    Uses the single-parameter parametrization of the SNS explorer: emitting a 0 self-loops in
+    state A with probability ``p`` or advances A -> B with probability ``1 - p``; from state B,
+    emitting a 0 self-loops with probability ``p`` and emitting a 1 resets B -> A (the
+    synchronizing symbol) with probability ``1 - p``.
+    """
+    return jnp.array(
+        [
+            [[p, 1 - p], [0.0, p]],
+            [[0.0, 0.0], [1 - p, 0.0]],
+        ]
+    )
+
+
+def iid_sns_transducer(p_in: float, p_0: float, p_1: float) -> jax.Array:
+    """Creates the joint kernels for an IID input driving an SNS transducer.
+
+    The input is IID with ``P(y = 1) = p_in`` (a single input state, so the input belief is
+    trivial). The transducer is a Simple Nonunifilar Source whose self-transition parameter is
+    ``p_0`` when the input symbol is 0 and ``p_1`` when it is 1. The composite observable token
+    ``(y, x)`` has vocabulary 4; the transducer hidden state lives on the 1-simplex with a
+    countably-infinite mixed-state set, providing an unambiguous reconstruction target.
+
+    Args:
+        p_in: Probability the IID input emits symbol 1.
+        p_0: SNS self-transition parameter used when the input symbol is 0.
+        p_1: SNS self-transition parameter used when the input symbol is 1.
+
+    Returns:
+        jax.Array of shape ``(4, 2, 2)``. Composite token ``k = y * 2 + x``.
+    """
+    assert 0 <= p_in <= 1
+    assert 0 <= p_0 <= 1
+    assert 0 <= p_1 <= 1
+    input_kernels = jnp.array([[[1 - p_in]], [[p_in]]])
+    transducer_kernels = jnp.stack([_sns_kernel(p_0), _sns_kernel(p_1)])
+    return driven_transducer(input_kernels, transducer_kernels)
+
+
+def coarse_grained_transducer(input_kernels: jax.Array, transducer_kernels: jax.Array) -> jax.Array:
+    """Builds the coarse-grained (intermediate-hidden) operator for a driven transducer.
+
+    When the intermediate/input symbol ``y`` is NOT observed and only the transducer output ``x``
+    is, an optimal observer's belief over the joint hidden state ``(R, S)`` evolves under the
+    modified operator obtained by summing the joint kernel over the hidden intermediate symbol:
+
+        ``W^(x) = sum_y  kron( T_input^(y), T_transducer^(x|y) )``.
+
+    Because of the sum over ``y`` the ``R`` and ``S`` subspaces are generally entangled: the belief
+    states are NOT tensor products of an input belief and a transducer belief, and can occupy the
+    full ``(n_R * n_S - 1)``-simplex rather than the low-dimensional product sub-manifold. This is
+    the "complexification by coarse-graining" of the joint process (Coarse-Graining Roots, §556).
+
+    Args:
+        input_kernels: Input HMM kernels of shape ``(n_y, n_R, n_R)``.
+        transducer_kernels: Transducer kernels of shape ``(n_y, n_x, n_S, n_S)``.
+
+    Returns:
+        jax.Array of shape ``(n_x, n_R * n_S, n_R * n_S)``, indexed by the observed output ``x``.
+    """
+    n_y = input_kernels.shape[0]
+    n_x = transducer_kernels.shape[1]
+    joint = driven_transducer(input_kernels, transducer_kernels)
+    n_state = joint.shape[1]
+    w = jnp.zeros((n_x, n_state, n_state))
+    for y in range(n_y):
+        for x in range(n_x):
+            w = w.at[x].add(joint[y * n_x + x])
+    return w
+
+
 def mr_name(p: float, q: float) -> jax.Array:
     """Creates a transition matrix for the Mr. Dursley/Wonka Process."""
     assert 0 <= p <= 1
@@ -406,6 +550,7 @@ HMM_MATRIX_FUNCTIONS = {
     "leaky_rrxor": leaky_rrxor,
     "matching_parens": matching_parens,
     "composite_mess3": composite_mess3,
+    "iid_sns_transducer": iid_sns_transducer,
     "mess3": mess3,
     "mr_name": mr_name,
     "no_consecutive_ones": no_consecutive_ones,
