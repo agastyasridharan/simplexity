@@ -12,6 +12,16 @@ A 4-layer transformer trained on next-token prediction linearly encodes the full
 
 See [`docs/composite_mess3_experiment.md`](docs/composite_mess3_experiment.md) for the full writeup with worked examples, belief evolution traces, and precise numerical results.
 
+## Transducer Belief Decomposition (input HMM → output transducer)
+
+A genuine input→output ε-transducer experiment (the feed-forward construction from `Docn/explorer.html`, per `Docn/aim.md` §10.4). An autonomous **input HMM** emits symbols `y` that drive a **transducer** emitting `x`; the observable is the composite token `(y, x)` and the joint kernel is `Kron(T_input^(y), T_transducer^(x|y))`. A transformer is trained on the joint stream and the residual stream is linearly probed for the **input belief**, the **transducer belief**, and the **joint belief** separately.
+
+Staged via a single `INPUT_MODE` flag: Stage A (`'iid'`) isolates the transducer with an IID input (its SNS belief manifold is the countably-infinite mixed-state arc on the 1-simplex — an unambiguous reconstruction target); Stage B (`'sns'`/`'mess3'`) uses a structured input so both marginals are nontrivial. Adds an in-notebook entropy-rate floor and per-target untrained baselines.
+
+- Library: `driven_transducer`, `iid_sns_transducer`, `_sns_kernel` in [`simplexity/generative_processes/transition_matrices.py`](simplexity/generative_processes/transition_matrices.py) (+ tests)
+- Notebooks (torch+numpy only): feed-forward + coarse-graining regimes in [`notebooks/colab/transducer_decomposition_experiment.ipynb`](notebooks/colab/transducer_decomposition_experiment.ipynb); feedback / partially-observable (modified-operator MSP) in [`notebooks/colab/transducer_feedback_experiment.ipynb`](notebooks/colab/transducer_feedback_experiment.ipynb)
+- Writeup: [`docs/transducer_decomposition_experiment.md`](docs/transducer_decomposition_experiment.md)
+
 ### What was added
 
 **Library code:**

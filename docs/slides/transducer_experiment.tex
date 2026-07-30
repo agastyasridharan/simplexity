@@ -1,0 +1,348 @@
+% Transducer Belief Decomposition -- experiment briefing
+% Compile on Overleaf with pdfLaTeX (no external images / fonts required).
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{whale}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+\newcommand{\Tin}{\hat{T}^{(y)}}
+\newcommand{\Ttr}{\hat{T}^{(x\mid y)}}
+\definecolor{accent}{RGB}{0,90,156}
+
+\title[Transducer Belief Decomposition]{Transducer Belief Decomposition}
+\subtitle{Recovering input--HMM and output--transducer belief geometry in a transformer}
+\author{MARS 4.0 -- Simplexity}
+\date{\today}
+
+\begin{document}
+
+\begin{frame}\titlepage\end{frame}
+
+\begin{frame}{One-slide summary}
+\begin{itemize}
+  \item \textbf{Question (aim §10.4):} when a transformer is trained on the \emph{joint}
+        input/output stream of an $\varepsilon$-transducer, does its residual stream linearly
+        encode \emph{both} the input--HMM belief and the output--transducer belief, as
+        \emph{separable} quantities?
+  \item \textbf{Construction:} autonomous input HMM $\Tin$ drives a transducer $\Ttr$; observable
+        is the composite token $(y,x)$; joint kernel $=\mathrm{kron}\!\big(\Tin,\Ttr\big)$.
+  \item \textbf{Why a transducer (not the old composite-Mess3):} the old experiment had one
+        observable stream and a \emph{hidden} driver -- a latent-disaggregation problem, not an
+        input$\to$output decomposition. There was no input symbol to build an input belief from.
+  \item \textbf{Headline result:} the belief is linearly present ($R^2\approx0.99$ on SNS and
+        Fractal2); observing the intermediate token gives a \emph{separable} belief, hiding it
+        \emph{entangles} it and erases \textbf{95--98\%} of the input belief while the transducer
+        belief is kept -- and the effect vanishes on an unpredictable-process control.
+  \item \textbf{Deliverables:} library kernels + tests, two torch/numpy notebooks (feed-forward +
+        coarse-graining, and feedback), docs \& slides. Cross-checked against \texttt{explorer.html}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Background: belief states / MSP (recap)}
+\begin{itemize}
+  \item HMM observer maintains a \textbf{belief (mixed) state} -- posterior over hidden states
+        given the past, updated by Bayes:
+        \[
+          \langle\eta_{t+1}\mid\; \propto\; \langle\eta_t\mid\, T^{(x_t)},
+          \qquad \text{renormalize}.
+        \]
+  \item The reachable set of belief states is the \textbf{Mixed-State Presentation (MSP)}.
+  \item \textbf{Linearity hypothesis (Shai et al.\ 2024):} for a transformer trained on
+        next-token prediction, $\exists$ linear $\hat M$ with
+        $\hat M f(x_{0:L}) \approx \lvert\rho(x_{0:L})\rangle$ -- the MSP is \emph{linearly
+        embedded} in the residual stream.
+  \item Unifilar processes (golden mean, even) $\Rightarrow$ \emph{finite} MSP. Nonunifilar
+        processes break this.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{The SNS: why it is the right probe target}
+\textbf{Simple Nonunifilar Source} (2 states, alphabet $\{0,1\}$):
+\[
+T^{(0)}=\begin{pmatrix} p & 1-p\\ 0 & p\end{pmatrix},\qquad
+T^{(1)}=\begin{pmatrix} 0 & 0\\ 1-p & 0\end{pmatrix}.
+\]
+\begin{itemize}
+  \item \textbf{Nonunifilar:} a symbol does not pin down the next state $\Rightarrow$ uncertainty
+        accumulates.
+  \item \textbf{Synchronizing symbol:} emitting a $1$ resets the belief to certainty.
+  \item $\Rightarrow$ \textbf{countably-infinite} belief set $\{\eta_0,\eta_1,\eta_2,\dots\}$: one
+        point per run-length of $0$s since the last $1$, marching along the 1-simplex toward a
+        limit; each $1$ jumps back to $\eta_0$.
+\end{itemize}
+\vspace{2mm}
+\centering
+\begin{tabular}{lll}
+\toprule
+process & unifilar? & MSP \\
+\midrule
+golden mean / even & yes & finite (a few points) \\
+\textbf{SNS} & no, synchronizing & \textbf{countably infinite (an arc)} \\
+Mess3 & no, non-synchronizing & uncountable (fractal) \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+\begin{frame}{From generator to transducer}
+\begin{itemize}
+  \item A \textbf{generator} (coin, golden mean, SNS) emits one stream autonomously.
+  \item A \textbf{transducer} is a channel with memory: reads input $y$, emits output $x$,
+        kernel $\Ttr$ = ``given input $y$ and state, emit $x$ and transition''.
+\end{itemize}
+\vspace{1mm}
+\textbf{Feed-forward, fully observable} (from \texttt{explorer.html}):
+\begin{itemize}
+  \item input HMM $\Tin$ emits $y$ (states $R$);
+  \item transducer $\Ttr$ reads $y$, emits $x$ (states $S$);
+  \item observer sees \emph{both} $\Rightarrow$ composite token $(y,x)$, index $k=y\,n_x+x$.
+\end{itemize}
+\[
+  \boxed{\,T_{\text{joint}}^{(y,x)} \;=\; \mathrm{kron}\!\big(\Tin,\ \Ttr\big)\,}
+  \quad\text{on the joint state } (R,S).
+\]
+Summed over the composite token this is row-stochastic $\Rightarrow$ a valid HMM the transformer
+trains on with ordinary next-token prediction.
+\end{frame}
+
+\begin{frame}{Three belief targets (marginals of the joint belief)}
+\centering
+\begin{tabular}{lll}
+\toprule
+target & definition & Stage A (IID input) \\
+\midrule
+input belief & marginalize out $S$ ($\to R$) & trivial (single point) \\
+transducer belief & marginalize out $R$ ($\to S$) & countable SNS arc \\
+joint belief & full $(R,S)$ & $=$ transducer belief \\
+\bottomrule
+\end{tabular}
+\vspace{4mm}
+\begin{itemize}
+  \item We fit \emph{separate} linear probes to each target (per layer + concatenated).
+  \item Decomposition question: are input and transducer beliefs carried in \emph{distinct}
+        residual-stream directions?
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Why old composite-Mess3 was \emph{not} input$\to$output}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{composite-Mess3 (prior work)}
+\begin{itemize}
+  \item one observable token stream;
+  \item single hidden state $(\text{driver},\text{transducer})$;
+  \item the ``driver'' is a \emph{latent} the net must infer;
+  \item probes the 6D joint belief + its driver/transducer \emph{marginals}.
+\end{itemize}
+\column{0.5\textwidth}
+\textbf{transducer (this work)}
+\begin{itemize}
+  \item two observable streams $y$ and $x$;
+  \item explicit channel $\Ttr$ with its own state;
+  \item input is \emph{observed}, so an input belief exists;
+  \item probes input belief vs transducer belief as separable objects.
+\end{itemize}
+\end{columns}
+\vspace{3mm}
+\centering
+\emph{Old = correct hierarchical-HMM latent disaggregation. New = the actual transducer
+decomposition of aim §10.4.}
+\end{frame}
+
+\begin{frame}{The crux: does the transformer see the intermediate token?}
+Coarse-Graining Roots §556. With input HMM $\Tin$ (states $R$) driving transducer $\Ttr$ (states $S$):
+\begin{itemize}
+  \item \textbf{Both $y$ and $x$ observed:} $V^{(y,x)} = \Ttr \otimes \Tin$. Beliefs are
+        \textbf{tensor products} $\Rightarrow$ input \& transducer beliefs \emph{separable},
+        expressible in $(|R|{-}1)+(|S|{-}1)$ dims.
+  \item \textbf{Coarse-grain intermediate $y$ (only $x$ observed):}
+        \[ W^{(x)} = \textstyle\sum_y \Ttr \otimes \Tin \]
+        the sum over hidden $y$ \textbf{entangles} $R$ and $S$ $\Rightarrow$ beliefs fill the full
+        $|R||S|{-}1$ simplex (the cascade tetrahedron).
+  \item \textbf{Coarse-grain output $x$:} reduces to the input HMM's MSP.
+\end{itemize}
+\vspace{1mm}
+\centering
+Verified numerically: fully-observable beliefs \textbf{100\% rank-1 (separable)};
+coarse-grained \textbf{34\%} (SNS$\to$SNS), \textbf{6\%} (Fractal2$\to$Fractal2, $b{=}0.85$).
+\end{frame}
+
+\begin{frame}{Reinterpreting the old composite-Mess3 result}
+\begin{itemize}
+  \item composite-Mess3 hid the driver (the intermediate variable) $\Rightarrow$ it was the
+        \textbf{coarse-grained} regime $W$, not a clean input$\to$output decomposition.
+  \item Hence: joint belief R$^2$ high ($0.98$) \emph{but} driver marginal lags ($0.94$; $0.56$ at L0).
+  \item That lag is the \textbf{expected signature of entanglement}, not a model failure. The
+        research question becomes: \emph{how much information does the transducer erase?}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Three observation regimes (one \texttt{OBSERVE} switch)}
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tabular}{llll}
+\toprule
+\texttt{OBSERVE} & tokens & operator & predicted belief \\
+\midrule
+\texttt{joint} & $(y,x)$ & $V$ & product (separable) \\
+\texttt{output\_only} & $x$ only & $W$ & entangled cascade \\
+\texttt{input\_only} & $y$ only & $\sum_x V$ & input HMM MSP \\
+\bottomrule
+\end{tabular}}
+\vspace{2mm}
+\begin{itemize}
+  \item Same $(R,S)$ space in all three $\Rightarrow$ always probe joint / input / transducer beliefs.
+  \item Processes: \texttt{iid}, \texttt{sns}, \texttt{fractal2}, \texttt{mess3} (input and transducer).
+  \item \textbf{Erase-gap}: run \texttt{joint} vs \texttt{output\_only} on the same process; compare marginal R$^2$.
+  \item \textbf{Stage C}: feedback / partially observable (modified-operator MSP) -- implemented as
+        a separate notebook.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Notebook pipeline (end to end)}
+\begin{enumerate}
+  \item \textbf{Build + verify} joint kernel; stationary dist; \textbf{entropy rate computed
+        in-notebook} (the CE-loss floor).
+  \item \textbf{Ground-truth manifolds} (step 1): BFS-enumerate the joint MSP, marginalize,
+        plot input vs transducer beliefs \emph{separately}.
+  \item \textbf{Train} a 4-layer transformer ($\sim$146k params, Shai A.6 arch, $N_{\text{ctx}}{=}50$)
+        on the active-regime token stream (1M steps full; 100k on free-T4).
+  \item \textbf{Loss vs entropy floor} sanity plot.
+  \item \textbf{Linear probes} (step 3) for input / transducer / joint, per layer + concat,
+        \emph{with an untrained-model baseline for every target}.
+  \item \textbf{Controls:} sequence-level CV, shuffle, temporal split.
+  \item \textbf{Decisive figure:} predicted-vs-true transducer belief with the countable SNS arc
+        as a rug.
+  \item \textbf{Save} weights / config / history / probes / controls.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Belief--activation alignment (no off-by-one)}
+\begin{itemize}
+  \item Belief is computed by Bayesian filtering along each sampled sequence;
+        $\eta_t$ = posterior \emph{after} tokens $0{:}t$.
+  \item Residual-stream activation at position $t$ (causal) has also seen tokens $0{:}t$.
+  \item $\Rightarrow \eta_t \leftrightarrow a_t$ aligned exactly (the common silent bug; checked).
+  \item Probe: OLS with intercept, aggregate multi-output $R^2$ and MSE; concatenated probe uses
+        all 4 layers ($256$D).
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Success criteria \& expected quirks}
+\begin{itemize}
+  \item \textbf{Geometry:} predicted transducer belief lands on the $y=x$ line and on the
+        \emph{countable SNS arc} (decisive figure); high transducer $R^2$.
+  \item \textbf{Controls:} seq-CV $\approx 1\times$ full MSE (no overfitting); shuffle $\gg 1\times$
+        (genuine pairing); untrained baseline $\gg$ trained.
+  \item \textbf{Prediction:} CE loss converges near the computed entropy-rate floor; report
+        $d_\mu = \tfrac1L\sum_t \mathrm{KL}(P_t\|Q_t)$ (geometric \emph{and} predictive axes).
+  \item \textbf{Separability:} analytical fraction rank-1 ($\approx 1$ for \texttt{joint}, $<1$ for \texttt{output\_only}).
+\end{itemize}
+\vspace{2mm}
+\textbf{Expected, not bugs (Stage A only):} joint $\equiv$ transducer rows (IID $\Rightarrow$ joint
+state $=$ transducer state); input-belief $R^2 = $ NaN (constant target). Both become meaningful in
+Stage B.
+\end{frame}
+
+\begin{frame}{Results --- belief recovery (fully observed) \& prediction}
+All runs: free-T4 Colab, 100k steps; loss converges to the computed entropy-rate floor
+($d_\mu \approx 10^{-3}$ nats).
+\begin{itemize}
+  \item \textbf{IID $\to$ SNS (validation):} transducer $R^2 = 0.994$; residual-stream readout lands
+        on the countable SNS arc; shuffle $168\times$, untrained $46\times$, seq-CV $1.00\times$.
+  \item \textbf{SNS $\to$ SNS, \texttt{joint}:} input $R^2{=}0.99$, transducer $0.99$, separability $1.00$
+        (product manifold); shuffle $127\times$.
+  \item \textbf{Fractal2 $\to$ Fractal2, \texttt{joint}:} input $R^2{=}0.997$, transducer $0.995$,
+        separability $1.00$; shuffle $218\times$. Belief geometry cleanly linear on both processes.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Results --- erasure under coarse-graining (the headline)}
+Cross-fit: how well the \emph{x-only} model recovers the \textbf{fully-observable} belief
+(low $R^2$ = erased):
+\vspace{1mm}
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+process & separability (joint$\to$out) & FULL \textbf{input} $R^2$ & FULL \textbf{transducer} $R^2$ \\
+\midrule
+SNS $\to$ SNS & $1.00 \to 0.34$ & $0.05$ (\textbf{$\sim$95\% erased}) & $0.89$ (retained) \\
+Fractal2 $\to$ Fractal2 & $1.00 \to 0.06$ & $0.017$ (\textbf{$\sim$98\% erased}) & $0.92$ (retained) \\
+\bottomrule
+\end{tabular}}
+\vspace{2mm}
+\begin{itemize}
+  \item Coarse-graining the intermediate token \textbf{erases the input belief but preserves the
+        transducer belief}, on two independent processes; more entanglement (lower separability)
+        $\Rightarrow$ more input erasure.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Results --- boundary control (effect is contingent on predictability)}
+\begin{itemize}
+  \item \textbf{Fractal2 ($b{=}0.5$) $\to$ Fractal2:} the joint process is maximally random
+        (entropy rate $=\log 4$, the vocab bound), so next-token prediction is trivial.
+  \item Consequence: the transformer has \emph{no incentive} to build belief states ---
+        probe $R^2 \approx$ untrained ($0.76$ vs $0.73$), shuffle only $4\times$ (vs $130$--$290\times$).
+  \item $\Rightarrow$ the belief-geometry phenomenon \textbf{requires a predictable process};
+        it is not an artifact. (Notebook now auto-flags entropy $\approx \log(\text{vocab})$.)
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{What was added to the codebase}
+\textbf{Library} (\texttt{transition\_matrices.py}):
+\begin{itemize}
+  \item \verb|driven_transducer| -- fully-observable joint kernel $V$;
+  \item \verb|coarse_grained_transducer| -- intermediate-hidden operator $W^{(x)}$;
+  \item \verb|input_only_operator| -- output-hidden operator (input HMM);
+  \item \verb|iid_sns_transducer|, \verb|_sns_kernel|, \verb|_fractal2_kernel|.
+\end{itemize}
+\textbf{Tests}: shape/stochasticity, input marginal, Kronecker structure, coarse-grained \&
+input-only operators.\\[1mm]
+\textbf{Notebooks} (torch/numpy only): feed-forward + coarse-graining
+(\texttt{transducer\_decomposition\_experiment.ipynb}); feedback / partially-observable
+(\texttt{transducer\_feedback\_experiment.ipynb}).\\[1mm]
+\textbf{Docs} + slides + README.
+\end{frame}
+
+\begin{frame}{Verification \& rigor}
+\begin{itemize}
+  \item Joint kernel and belief trajectories cross-checked against the \texttt{explorer.html}
+        \texttt{sampleDrivenTransducer} reference: \textbf{identical beliefs} (max diff $0.0$).
+  \item Confirmed SNS transducer belief set is \textbf{countable} (e.g.\ 133 distinct states by
+        depth-12 BFS); input marginal trivial under IID; beliefs normalize; entropy rate
+        $<\log(\text{vocab})$ (structure present).
+  \item Rigor fixes vs prior experiment: (i) entropy-rate floor \emph{computed}, not hardcoded;
+        (ii) untrained baseline reported \emph{per target}, not only joint.
+  \item Notebook is torch/numpy only (no JAX) -- avoids JAX/torch VRAM contention on one GPU;
+        entropy-rate pre-check auto-flags degenerate (unpredictable) processes before training.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Run plan \& next steps}
+\textbf{Setup used:} free-T4 Colab, \texttt{COLAB\_FREE\_T4=True} (100k steps, 10k analysis seqs,
+$\sim$40 min/run), Drive-persisted checkpoints per run.
+(Library tests: \texttt{uv run --extra dev --extra pytorch pytest -k "transducer or coarse"}.)\\[2mm]
+\textbf{Done:} iid$\to$sns (validation), sns$\to$sns and fractal2$\to$fractal2 in both regimes +
+erasure cross-fit, and the degenerate-Fractal2 control.\\[1mm]
+\textbf{Next:}
+\begin{enumerate}
+  \item Third process (mess3 $\to$ sns) to confirm the erasure pattern once more.
+  \item Full 1M-step runs for tighter numbers (on a non-free GPU).
+  \item Feedback / partially observable (\texttt{transducer\_feedback\_experiment.ipynb}):
+        each agent's modified-operator MSP.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{}
+\centering
+\Large Questions / discussion
+\end{frame}
+
+\end{document}
