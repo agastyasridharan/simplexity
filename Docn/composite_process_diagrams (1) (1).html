@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sequential Composite Belief State Process — Diagrams</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #fafaf8;
+    --bg2: #f0efe8;
+    --text: #1a1a18;
+    --text2: #6b6a64;
+    --text3: #9c9a92;
+    --border: #d3d1c7;
+    --teal-50: #E1F5EE; --teal-200: #5DCAA5; --teal-400: #1D9E75; --teal-600: #0F6E56; --teal-800: #085041;
+    --purple-50: #EEEDFE; --purple-200: #AFA9EC; --purple-400: #7F77DD; --purple-600: #534AB7; --purple-800: #3C3489;
+    --amber-50: #FAEEDA; --amber-200: #FAC775; --amber-400: #EF9F27; --amber-600: #BA7517; --amber-800: #633806;
+    --blue-50: #E6F1FB; --blue-200: #85B7EB; --blue-400: #378ADD; --blue-600: #185FA5; --blue-800: #0C447C;
+    --gray-50: #F1EFE8; --gray-400: #888780; --gray-600: #5F5E5A;
+    --coral-400: #D85A30; --coral-600: #993C1D;
+    --red-400: #E24B4A;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18; --bg2: #2c2c2a; --text: #e8e6de; --text2: #9c9a92; --text3: #6b6a64; --border: #444441;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .page { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 26px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.02em; }
+  h2 { font-size: 18px; font-weight: 500; margin: 48px 0 16px; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .subtitle { font-size: 14px; color: var(--text2); margin-bottom: 32px; }
+  p { font-size: 15px; color: var(--text2); margin-bottom: 16px; }
+  .diagram-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; margin: 20px 0 24px; }
+  .note { font-size: 13px; color: var(--text2); padding: 12px 16px; border-left: 3px solid var(--border); margin: 16px 0; line-height: 1.6; }
+  .note strong { color: var(--text); }
+  .eq { font-family: 'IBM Plex Mono', monospace; font-size: 13px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin: 12px 0; line-height: 2; }
+  .side-by-side { display: flex; gap: 24px; flex-wrap: wrap; }
+  .side-by-side > div { flex: 1; min-width: 340px; }
+  .pred { display: flex; gap: 10px; margin-bottom: 8px; font-size: 14px; }
+  .pred-n { font-weight: 600; color: var(--blue-600); min-width: 28px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 12px 0; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
+
+  svg text.label { font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; fill: var(--text2); }
+  svg text.label-bold { font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; fill: var(--text); font-weight: 500; }
+  svg text.label-sm { font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; fill: var(--text3); }
+  svg text.label-mono { font-family: 'IBM Plex Mono', monospace; font-size: 11px; fill: var(--text2); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Sequential composite belief state process</h1>
+<p class="subtitle">Extension of Shai et al. (2024) — hierarchical HMM with driver + transducer structure</p>
+
+<!-- ============================================================ -->
+<h2>1. Generative architecture</h2>
+<p>A hidden driver process selects between two Mess3 transducer variants at each timestep. Only the transducer's token emissions are visible to the transformer.</p>
+
+<div class="diagram-card">
+<svg width="100%" viewBox="0 0 800 560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- Section label: Driver -->
+  <text class="label-sm" x="400" y="24" text-anchor="middle">LEVEL 1 — DRIVER PROCESS (hidden from transformer)</text>
+
+  <!-- Driver box -->
+  <rect x="200" y="36" width="400" height="110" rx="16" fill="none" stroke="var(--amber-400)" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text class="label-bold" x="220" y="58" fill="var(--amber-800)">Driver</text>
+  <text class="label" x="220" y="74" fill="var(--amber-600)">ε = 0.05, dwell ≈ 20 steps</text>
+
+  <!-- D_A circle -->
+  <circle cx="320" cy="105" r="30" fill="var(--amber-50)" stroke="var(--amber-400)" stroke-width="1.5"/>
+  <text class="label-bold" x="320" y="110" text-anchor="middle" fill="var(--amber-800)">D_A</text>
+
+  <!-- D_B circle -->
+  <circle cx="480" cy="105" r="30" fill="var(--amber-50)" stroke="var(--amber-400)" stroke-width="1.5"/>
+  <text class="label-bold" x="480" y="110" text-anchor="middle" fill="var(--amber-800)">D_B</text>
+
+  <!-- Self loops -->
+  <path d="M298 80 C285 50,310 40,330 76" fill="none" stroke="var(--amber-400)" stroke-width="1" marker-end="url(#arr)"/>
+  <text class="label-mono" x="305" y="48" text-anchor="middle" fill="var(--amber-600)">1−ε</text>
+  <path d="M502 80 C515 50,490 40,470 76" fill="none" stroke="var(--amber-400)" stroke-width="1" marker-end="url(#arr)"/>
+  <text class="label-mono" x="495" y="48" text-anchor="middle" fill="var(--amber-600)">1−ε</text>
+
+  <!-- Cross arrows -->
+  <line x1="352" y1="96" x2="448" y2="96" stroke="var(--amber-400)" stroke-width="1" marker-end="url(#arr)"/>
+  <text class="label-mono" x="400" y="90" text-anchor="middle" fill="var(--amber-600)">ε</text>
+  <line x1="448" y1="114" x2="352" y2="114" stroke="var(--amber-400)" stroke-width="1" marker-end="url(#arr)"/>
+  <text class="label-mono" x="400" y="132" text-anchor="middle" fill="var(--amber-600)">ε</text>
+
+  <!-- "selects" arrows -->
+  <line x1="310" y1="146" x2="230" y2="202" stroke="var(--text3)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="label-sm" x="254" y="178" text-anchor="middle">selects</text>
+  <line x1="490" y1="146" x2="570" y2="202" stroke="var(--text3)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text class="label-sm" x="546" y="178" text-anchor="middle">selects</text>
+
+  <!-- Section label: Transducer -->
+  <text class="label-sm" x="400" y="200" text-anchor="middle">LEVEL 2 — TRANSDUCER (hidden states, visible emissions)</text>
+
+  <!-- Variant A box -->
+  <rect x="60" y="210" width="320" height="175" rx="14" fill="none" stroke="var(--teal-400)" stroke-width="1.5"/>
+  <text class="label-bold" x="80" y="234" fill="var(--teal-800)">Mess3 variant A</text>
+  <text class="label" x="80" y="252" fill="var(--teal-600)">α = 0.85, x = 0.05</text>
+
+  <!-- Variant A states -->
+  <circle cx="130" cy="330" r="24" fill="var(--teal-50)" stroke="var(--teal-400)" stroke-width="1"/>
+  <text class="label-bold" x="130" y="335" text-anchor="middle" fill="var(--teal-800)">S₁</text>
+  <circle cx="220" cy="285" r="24" fill="var(--teal-50)" stroke="var(--teal-400)" stroke-width="1"/>
+  <text class="label-bold" x="220" y="290" text-anchor="middle" fill="var(--teal-800)">S₂</text>
+  <circle cx="310" cy="330" r="24" fill="var(--teal-50)" stroke="var(--teal-400)" stroke-width="1"/>
+  <text class="label-bold" x="310" y="335" text-anchor="middle" fill="var(--teal-800)">S₃</text>
+
+  <!-- Variant A arrows -->
+  <path d="M148 312 C158 286,198 270,202 274" fill="none" stroke="var(--teal-400)" stroke-width="0.8" marker-end="url(#arr)"/>
+  <path d="M238 298 C248 310,290 316,296 318" fill="none" stroke="var(--teal-400)" stroke-width="0.8" marker-end="url(#arr)"/>
+  <path d="M290 344 C270 356,160 356,142 344" fill="none" stroke="var(--teal-400)" stroke-width="0.8" marker-end="url(#arr)"/>
+  <!-- S1 self-loop -->
+  <path d="M110 312 C95 288,105 276,120 306" fill="none" stroke="var(--teal-400)" stroke-width="0.8" marker-end="url(#arr)"/>
+  <text class="label-mono" x="92" y="290" fill="var(--teal-600)">A:0.77</text>
+
+  <!-- Variant B box -->
+  <rect x="420" y="210" width="320" height="175" rx="14" fill="none" stroke="var(--purple-400)" stroke-width="1.5"/>
+  <text class="label-bold" x="440" y="234" fill="var(--purple-800)">Mess3 variant B</text>
+  <text class="label" x="440" y="252" fill="var(--purple-600)">α = 0.65, x = 0.05</text>
+
+  <!-- Variant B states -->
+  <circle cx="490" cy="330" r="24" fill="var(--purple-50)" stroke="var(--purple-400)" stroke-width="1"/>
+  <text class="label-bold" x="490" y="335" text-anchor="middle" fill="var(--purple-800)">S₁</text>
+  <circle cx="580" cy="285" r="24" fill="var(--purple-50)" stroke="var(--purple-400)" stroke-width="1"/>
+  <text class="label-bold" x="580" y="290" text-anchor="middle" fill="var(--purple-800)">S₂</text>
+  <circle cx="670" cy="330" r="24" fill="var(--purple-50)" stroke="var(--purple-400)" stroke-width="1"/>
+  <text class="label-bold" x="670" y="335" text-anchor="middle" fill="var(--purple-800)">S₃</text>
+
+  <!-- Variant B arrows -->
+  <path d="M508 312 C518 286,558 270,562 274" fill="none" stroke="var(--purple-400)" stroke-width="0.8" marker-end="url(#arr)"/>
+  <path d="M598 298 C608 310,650 316,656 318" fill="none" stroke="var(--purple-400)" stroke-width="0.8" marker-end="url(#arr)"/>
+  <path d="M650 344 C630 356,520 356,502 344" fill="none" stroke="var(--purple-400)" stroke-width="0.8" marker-end="url(#arr)"/>
+  <!-- S1 self-loop -->
+  <path d="M470 312 C455 288,465 276,480 306" fill="none" stroke="var(--purple-400)" stroke-width="0.8" marker-end="url(#arr)"/>
+  <text class="label-mono" x="448" y="290" fill="var(--purple-600)">A:0.59</text>
+
+  <!-- Visibility boundary -->
+  <line x1="40" y1="410" x2="760" y2="410" stroke="var(--text3)" stroke-width="0.5" stroke-dasharray="8 5" opacity="0.4"/>
+  <text class="label-sm" x="740" y="404" text-anchor="end" opacity="0.5">visibility boundary</text>
+
+  <!-- Emission arrows -->
+  <line x1="220" y1="385" x2="360" y2="430" stroke="var(--text3)" stroke-width="1.2" marker-end="url(#arr)" opacity="0.6"/>
+  <line x1="580" y1="385" x2="440" y2="430" stroke="var(--text3)" stroke-width="1.2" marker-end="url(#arr)" opacity="0.6"/>
+  <text class="label-sm" x="275" y="404">emits y_t</text>
+  <text class="label-sm" x="505" y="404">emits y_t</text>
+
+  <!-- Visible token stream -->
+  <rect x="160" y="430" width="480" height="44" rx="10" fill="var(--gray-50)" stroke="var(--border)" stroke-width="1"/>
+  <text class="label-bold" x="400" y="456" text-anchor="middle">y₀ &nbsp; y₁ &nbsp; y₂ &nbsp; y₃ &nbsp; y₄ &nbsp; y₅ &nbsp; y₆ &nbsp; · · · &nbsp; y₄₉</text>
+
+  <!-- Arrow to transformer -->
+  <line x1="400" y1="474" x2="400" y2="497" stroke="var(--text3)" stroke-width="1.2" marker-end="url(#arr)"/>
+
+  <!-- Transformer -->
+  <rect x="240" y="500" width="320" height="50" rx="10" fill="var(--blue-50)" stroke="var(--blue-400)" stroke-width="1.5"/>
+  <text class="label-bold" x="400" y="522" text-anchor="middle" fill="var(--blue-800)">Transformer (4L, d=64, ctx=50)</text>
+  <text class="label" x="400" y="540" text-anchor="middle" fill="var(--blue-600)">Trained on next-token prediction only</text>
+
+  <!-- State space label -->
+  <text class="label" x="62" y="445" fill="var(--text3)">Composite state: (d_t, s_t)</text>
+  <text class="label" x="62" y="462" fill="var(--text3)">∈ {D_A,D_B} × {S₁,S₂,S₃} = 6 states</text>
+
+</svg>
+</div>
+
+<div class="note">
+  <strong>Key point:</strong> The driver state d_t is never observed. It selects which Mess3 variant governs the transducer at each timestep. The transducer emits visible tokens y_t ∈ {A, B, C}. The transformer must simultaneously infer (1) which driver regime is active and (2) what transducer state it's in — from the token stream alone.
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--amber-50);border:1px solid var(--amber-400)"></div>Driver (hidden)</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--teal-50);border:1px solid var(--teal-400)"></div>Variant A (α=0.85)</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--purple-50);border:1px solid var(--purple-400)"></div>Variant B (α=0.65)</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--blue-50);border:1px solid var(--blue-400)"></div>Transformer</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>2. Belief state decomposition</h2>
+<p>The 6D belief vector decomposes hierarchically into a driver marginal and two conditional transducer beliefs. Four linear probes target different components at different layers.</p>
+
+<div class="diagram-card">
+<svg width="100%" viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Full belief vector label -->
+  <text class="label-sm" x="400" y="22" text-anchor="middle">FULL BELIEF STATE η_t ∈ ℝ⁶ (probability distribution over 6 composite states)</text>
+
+  <!-- 6 cells -->
+  <rect x="55" y="34" width="110" height="50" rx="6" fill="var(--teal-50)" stroke="var(--teal-400)" stroke-width="1"/>
+  <text class="label" x="110" y="52" text-anchor="middle" fill="var(--teal-600)">(D_A, S₁)</text>
+  <text class="label-bold" x="110" y="70" text-anchor="middle" fill="var(--teal-800)">η₁</text>
+
+  <rect x="175" y="34" width="110" height="50" rx="6" fill="var(--teal-50)" stroke="var(--teal-400)" stroke-width="1"/>
+  <text class="label" x="230" y="52" text-anchor="middle" fill="var(--teal-600)">(D_A, S₂)</text>
+  <text class="label-bold" x="230" y="70" text-anchor="middle" fill="var(--teal-800)">η₂</text>
+
+  <rect x="295" y="34" width="110" height="50" rx="6" fill="var(--teal-50)" stroke="var(--teal-400)" stroke-width="1"/>
+  <text class="label" x="350" y="52" text-anchor="middle" fill="var(--teal-600)">(D_A, S₃)</text>
+  <text class="label-bold" x="350" y="70" text-anchor="middle" fill="var(--teal-800)">η₃</text>
+
+  <rect x="435" y="34" width="110" height="50" rx="6" fill="var(--purple-50)" stroke="var(--purple-400)" stroke-width="1"/>
+  <text class="label" x="490" y="52" text-anchor="middle" fill="var(--purple-600)">(D_B, S₁)</text>
+  <text class="label-bold" x="490" y="70" text-anchor="middle" fill="var(--purple-800)">η₄</text>
+
+  <rect x="555" y="34" width="110" height="50" rx="6" fill="var(--purple-50)" stroke="var(--purple-400)" stroke-width="1"/>
+  <text class="label" x="610" y="52" text-anchor="middle" fill="var(--purple-600)">(D_B, S₂)</text>
+  <text class="label-bold" x="610" y="70" text-anchor="middle" fill="var(--purple-800)">η₅</text>
+
+  <rect x="675" y="34" width="110" height="50" rx="6" fill="var(--purple-50)" stroke="var(--purple-400)" stroke-width="1"/>
+  <text class="label" x="730" y="52" text-anchor="middle" fill="var(--purple-600)">(D_B, S₃)</text>
+  <text class="label-bold" x="730" y="70" text-anchor="middle" fill="var(--purple-800)">η₆</text>
+
+  <!-- Brackets -->
+  <path d="M55 90 L55 96 L405 96 L405 90" fill="none" stroke="var(--teal-600)" stroke-width="1"/>
+  <line x1="230" y1="96" x2="230" y2="110" stroke="var(--teal-600)" stroke-width="1"/>
+  <text class="label-mono" x="230" y="124" text-anchor="middle" fill="var(--teal-600)">θ = η₁ + η₂ + η₃ = P(driver = A)</text>
+
+  <path d="M435 90 L435 96 L785 96 L785 90" fill="none" stroke="var(--purple-600)" stroke-width="1"/>
+  <line x1="610" y1="96" x2="610" y2="110" stroke="var(--purple-600)" stroke-width="1"/>
+  <text class="label-mono" x="610" y="124" text-anchor="middle" fill="var(--purple-600)">1−θ = η₄ + η₅ + η₆ = P(driver = B)</text>
+
+  <!-- Decomposition label -->
+  <text class="label-sm" x="400" y="152" text-anchor="middle">HIERARCHICAL DECOMPOSITION</text>
+
+  <!-- Driver marginal box -->
+  <rect x="55" y="164" width="200" height="75" rx="10" fill="var(--amber-50)" stroke="var(--amber-400)" stroke-width="1"/>
+  <text class="label-bold" x="155" y="188" text-anchor="middle" fill="var(--amber-800)">Driver marginal</text>
+  <text class="label" x="155" y="206" text-anchor="middle" fill="var(--amber-600)">θ = P(driver = A | y₁:t)</text>
+  <text class="label" x="155" y="224" text-anchor="middle" fill="var(--amber-600)">Scalar ∈ [0, 1]</text>
+
+  <!-- Conditional A box -->
+  <rect x="280" y="164" width="230" height="75" rx="10" fill="var(--teal-50)" stroke="var(--teal-400)" stroke-width="1"/>
+  <text class="label-bold" x="395" y="188" text-anchor="middle" fill="var(--teal-800)">Conditional transducer | A</text>
+  <text class="label-mono" x="395" y="206" text-anchor="middle" fill="var(--teal-600)">β_A = (η₁/θ, η₂/θ, η₃/θ)</text>
+  <text class="label" x="395" y="224" text-anchor="middle" fill="var(--teal-600)">Traces fractal of variant A</text>
+
+  <!-- Conditional B box -->
+  <rect x="535" y="164" width="250" height="75" rx="10" fill="var(--purple-50)" stroke="var(--purple-400)" stroke-width="1"/>
+  <text class="label-bold" x="660" y="188" text-anchor="middle" fill="var(--purple-800)">Conditional transducer | B</text>
+  <text class="label-mono" x="660" y="206" text-anchor="middle" fill="var(--purple-600)">β_B = (η₄, η₅, η₆) / (1−θ)</text>
+  <text class="label" x="660" y="224" text-anchor="middle" fill="var(--purple-600)">Traces fractal of variant B</text>
+
+  <!-- Dashed lines down -->
+  <line x1="155" y1="244" x2="155" y2="272" stroke="var(--text3)" stroke-width="0.5" stroke-dasharray="3 3"/>
+  <line x1="395" y1="244" x2="395" y2="272" stroke="var(--text3)" stroke-width="0.5" stroke-dasharray="3 3"/>
+  <line x1="660" y1="244" x2="660" y2="272" stroke="var(--text3)" stroke-width="0.5" stroke-dasharray="3 3"/>
+
+  <!-- Transducer marginal -->
+  <rect x="170" y="272" width="460" height="48" rx="10" fill="var(--gray-50)" stroke="var(--border)" stroke-width="1"/>
+  <text class="label-bold" x="400" y="293" text-anchor="middle">Transducer marginal: μ = θ · β_A + (1−θ) · β_B</text>
+  <text class="label" x="400" y="311" text-anchor="middle" fill="var(--text2)">This determines next-token prediction P(y_{t+1})</text>
+
+  <!-- Probes section -->
+  <text class="label-sm" x="400" y="350" text-anchor="middle">LINEAR PROBES (affine map: activation → target)</text>
+
+  <rect x="55" y="362" width="160" height="56" rx="8" fill="var(--blue-50)" stroke="var(--blue-400)" stroke-width="1"/>
+  <text class="label-bold" x="135" y="384" text-anchor="middle" fill="var(--blue-800)">Probe 1: Full belief</text>
+  <text class="label-mono" x="135" y="404" text-anchor="middle" fill="var(--blue-600)">a → η ∈ ℝ⁶</text>
+
+  <rect x="235" y="362" width="160" height="56" rx="8" fill="var(--blue-50)" stroke="var(--blue-400)" stroke-width="1"/>
+  <text class="label-bold" x="315" y="384" text-anchor="middle" fill="var(--blue-800)">Probe 2: Driver</text>
+  <text class="label-mono" x="315" y="404" text-anchor="middle" fill="var(--blue-600)">a → θ ∈ ℝ¹</text>
+
+  <rect x="415" y="362" width="160" height="56" rx="8" fill="var(--blue-50)" stroke="var(--blue-400)" stroke-width="1"/>
+  <text class="label-bold" x="495" y="384" text-anchor="middle" fill="var(--blue-800)">Probe 3: Transducer</text>
+  <text class="label-mono" x="495" y="404" text-anchor="middle" fill="var(--blue-600)">a → μ ∈ ℝ³</text>
+
+  <rect x="595" y="362" width="160" height="56" rx="8" fill="var(--blue-50)" stroke="var(--blue-400)" stroke-width="1"/>
+  <text class="label-bold" x="675" y="384" text-anchor="middle" fill="var(--blue-800)">Probe 4: Next-token</text>
+  <text class="label-mono" x="675" y="404" text-anchor="middle" fill="var(--blue-600)">a → P(y) ∈ ℝ³</text>
+
+  <!-- Layer predictions -->
+  <text class="label-sm" x="400" y="448" text-anchor="middle">EXPECTED LAYER-WISE DISTRIBUTION</text>
+
+  <rect x="180" y="458" width="440" height="34" rx="6" fill="var(--gray-50)" stroke="var(--border)" stroke-width="0.5"/>
+  <text class="label-bold" x="210" y="480" fill="var(--text)">Layer 4 (final)</text>
+  <text class="label" x="590" y="480" text-anchor="end" fill="var(--teal-600)">μ strong, θ may fade</text>
+
+  <rect x="180" y="496" width="440" height="34" rx="6" fill="var(--gray-50)" stroke="var(--border)" stroke-width="0.5"/>
+  <text class="label-bold" x="210" y="518" fill="var(--text)">Layers 2–3 (intermediate)</text>
+  <text class="label" x="590" y="518" text-anchor="end" fill="var(--amber-600)">θ strongest here</text>
+
+</svg>
+</div>
+
+<div class="eq">
+  <strong>Update rule (identical form to original paper):</strong><br>
+  η_t = η_{t-1} · T_comp^(y_t) / (η_{t-1} · T_comp^(y_t) · 𝟏)<br><br>
+  <strong>Block structure of T_comp^(y) encoding the hierarchy:</strong><br>
+  T_comp^(y) = | (1−ε)·T_A^(y) &nbsp;&nbsp; ε·T_A^(y) &nbsp;&nbsp; |<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| &nbsp;ε·T_B^(y) &nbsp;&nbsp;&nbsp;&nbsp; (1−ε)·T_B^(y) |<br><br>
+  <strong>Critical:</strong> Top-right block uses T_A (not T_B) — the <em>current</em> driver state determines transducer dynamics.
+</div>
+
+<!-- ============================================================ -->
+<h2>3. Expected geometry and predictions</h2>
+<p>The belief geometry should show two fractal attractors (one per regime) connected by a bridge of uncertain-driver points. The synchronization timescales should separate cleanly.</p>
+
+<div class="side-by-side">
+
+<div>
+<div class="diagram-card">
+<svg width="100%" viewBox="0 0 360 340" xmlns="http://www.w3.org/2000/svg">
+  <text class="label-sm" x="180" y="18" text-anchor="middle">EXPECTED GEOMETRY (PCA of 5-simplex)</text>
+
+  <!-- Cluster A: teal dots -->
+  <g opacity="0.75">
+    <circle cx="82" cy="90" r="2.5" fill="var(--teal-400)"/>
+    <circle cx="92" cy="84" r="2" fill="var(--teal-400)"/>
+    <circle cx="75" cy="98" r="2.2" fill="var(--teal-400)"/>
+    <circle cx="100" cy="78" r="1.8" fill="var(--teal-400)"/>
+    <circle cx="85" cy="104" r="2.4" fill="var(--teal-400)"/>
+    <circle cx="95" cy="95" r="2" fill="var(--teal-400)"/>
+    <circle cx="105" cy="88" r="1.7" fill="var(--teal-400)"/>
+    <circle cx="72" cy="82" r="2.1" fill="var(--teal-400)"/>
+    <circle cx="88" cy="72" r="1.9" fill="var(--teal-400)"/>
+    <circle cx="112" cy="96" r="1.6" fill="var(--teal-400)"/>
+    <circle cx="66" cy="108" r="2.2" fill="var(--teal-400)"/>
+    <circle cx="98" cy="70" r="1.7" fill="var(--teal-400)"/>
+    <circle cx="115" cy="82" r="1.9" fill="var(--teal-400)"/>
+    <circle cx="78" cy="114" r="2" fill="var(--teal-400)"/>
+    <circle cx="60" cy="88" r="1.8" fill="var(--teal-400)"/>
+    <circle cx="102" cy="108" r="2.1" fill="var(--teal-400)"/>
+    <circle cx="90" cy="118" r="1.7" fill="var(--teal-400)"/>
+    <circle cx="68" cy="74" r="1.9" fill="var(--teal-400)"/>
+    <circle cx="120" cy="76" r="1.5" fill="var(--teal-400)"/>
+    <circle cx="55" cy="96" r="2.2" fill="var(--teal-400)"/>
+    <!-- Sub-cluster hints -->
+    <circle cx="80" cy="64" r="1.2" fill="var(--teal-200)"/>
+    <circle cx="90" cy="60" r="1" fill="var(--teal-200)"/>
+    <circle cx="72" cy="66" r="1.3" fill="var(--teal-200)"/>
+    <circle cx="105" cy="62" r="1.1" fill="var(--teal-200)"/>
+    <circle cx="60" cy="68" r="1.2" fill="var(--teal-200)"/>
+    <circle cx="110" cy="112" r="1.2" fill="var(--teal-200)"/>
+    <circle cx="52" cy="102" r="1" fill="var(--teal-200)"/>
+    <circle cx="122" cy="94" r="1.1" fill="var(--teal-200)"/>
+    <circle cx="124" cy="102" r="1.3" fill="var(--teal-200)"/>
+    <circle cx="64" cy="116" r="1.2" fill="var(--teal-200)"/>
+    <circle cx="86" cy="124" r="1.1" fill="var(--teal-200)"/>
+  </g>
+  <text class="label" x="90" y="144" text-anchor="middle" fill="var(--teal-600)">θ ≈ 1 (regime A)</text>
+  <text class="label" x="90" y="160" text-anchor="middle" fill="var(--teal-600)">Variant A fractal</text>
+
+  <!-- Cluster B: purple dots -->
+  <g opacity="0.75">
+    <circle cx="245" cy="210" r="2.8" fill="var(--purple-400)"/>
+    <circle cx="256" cy="204" r="2.2" fill="var(--purple-400)"/>
+    <circle cx="238" cy="220" r="2.5" fill="var(--purple-400)"/>
+    <circle cx="266" cy="215" r="1.9" fill="var(--purple-400)"/>
+    <circle cx="232" cy="232" r="2.2" fill="var(--purple-400)"/>
+    <circle cx="260" cy="226" r="2" fill="var(--purple-400)"/>
+    <circle cx="272" cy="200" r="1.8" fill="var(--purple-400)"/>
+    <circle cx="226" cy="206" r="2.4" fill="var(--purple-400)"/>
+    <circle cx="250" cy="194" r="2.1" fill="var(--purple-400)"/>
+    <circle cx="278" cy="212" r="1.6" fill="var(--purple-400)"/>
+    <circle cx="220" cy="242" r="2.3" fill="var(--purple-400)"/>
+    <circle cx="282" cy="222" r="1.9" fill="var(--purple-400)"/>
+    <circle cx="256" cy="240" r="2" fill="var(--purple-400)"/>
+    <circle cx="215" cy="216" r="1.8" fill="var(--purple-400)"/>
+    <circle cx="268" cy="236" r="2.1" fill="var(--purple-400)"/>
+    <circle cx="235" cy="248" r="1.7" fill="var(--purple-400)"/>
+    <circle cx="288" cy="230" r="1.5" fill="var(--purple-400)"/>
+    <circle cx="210" cy="228" r="1.9" fill="var(--purple-400)"/>
+    <!-- Sub-cluster hints -->
+    <circle cx="248" cy="184" r="1.2" fill="var(--purple-200)"/>
+    <circle cx="260" cy="188" r="1" fill="var(--purple-200)"/>
+    <circle cx="236" cy="190" r="1.3" fill="var(--purple-200)"/>
+    <circle cx="274" cy="192" r="1.1" fill="var(--purple-200)"/>
+    <circle cx="292" cy="218" r="1.2" fill="var(--purple-200)"/>
+    <circle cx="206" cy="238" r="1" fill="var(--purple-200)"/>
+    <circle cx="228" cy="254" r="1.1" fill="var(--purple-200)"/>
+    <circle cx="272" cy="248" r="1.3" fill="var(--purple-200)"/>
+    <circle cx="282" cy="242" r="1.2" fill="var(--purple-200)"/>
+  </g>
+  <text class="label" x="250" y="268" text-anchor="middle" fill="var(--purple-600)">θ ≈ 0 (regime B)</text>
+  <text class="label" x="250" y="284" text-anchor="middle" fill="var(--purple-600)">Variant B fractal</text>
+
+  <!-- Bridge region -->
+  <g opacity="0.35">
+    <circle cx="160" cy="150" r="1.8" fill="var(--gray-400)"/>
+    <circle cx="170" cy="155" r="1.6" fill="var(--gray-400)"/>
+    <circle cx="154" cy="162" r="1.7" fill="var(--gray-400)"/>
+    <circle cx="176" cy="148" r="1.5" fill="var(--gray-400)"/>
+    <circle cx="165" cy="167" r="1.9" fill="var(--gray-400)"/>
+    <circle cx="148" cy="145" r="1.6" fill="var(--gray-400)"/>
+    <circle cx="180" cy="160" r="1.4" fill="var(--gray-400)"/>
+    <circle cx="162" cy="140" r="1.7" fill="var(--gray-400)"/>
+    <circle cx="185" cy="170" r="1.5" fill="var(--gray-400)"/>
+    <circle cx="142" cy="155" r="1.8" fill="var(--gray-400)"/>
+    <circle cx="172" cy="175" r="1.6" fill="var(--gray-400)"/>
+    <circle cx="136" cy="140" r="1.4" fill="var(--gray-400)"/>
+    <circle cx="190" cy="178" r="1.7" fill="var(--gray-400)"/>
+    <circle cx="130" cy="130" r="1.5" fill="var(--gray-400)"/>
+    <circle cx="195" cy="186" r="1.6" fill="var(--gray-400)"/>
+  </g>
+  <text class="label-sm" x="200" y="136">θ ≈ 0.5 (uncertain)</text>
+
+  <!-- Driver axis -->
+  <line x1="40" y1="310" x2="310" y2="310" stroke="var(--text3)" stroke-width="0.5" marker-end="url(#arr)" opacity="0.4"/>
+  <text class="label-sm" x="175" y="332" text-anchor="middle">Driver belief θ →</text>
+  <text class="label" x="50" y="306" fill="var(--teal-600)" opacity="0.6">A</text>
+  <text class="label" x="300" y="306" fill="var(--purple-600)" opacity="0.6">B</text>
+
+</svg>
+</div>
+</div>
+
+<div>
+<div class="diagram-card">
+<svg width="100%" viewBox="0 0 360 340" xmlns="http://www.w3.org/2000/svg">
+  <text class="label-sm" x="180" y="18" text-anchor="middle">PREDICTED SYNCHRONIZATION RATES</text>
+
+  <!-- Axes -->
+  <line x1="55" y1="280" x2="320" y2="280" stroke="var(--text2)" stroke-width="0.5" marker-end="url(#arr)"/>
+  <line x1="55" y1="280" x2="55" y2="40" stroke="var(--text2)" stroke-width="0.5" marker-end="url(#arr)"/>
+
+  <text class="label" x="187" y="310" text-anchor="middle">Context position t</text>
+  <text class="label" x="28" y="160" text-anchor="middle" transform="rotate(-90, 28, 160)">Probe MSE ↑</text>
+
+  <!-- Ticks -->
+  <text class="label-sm" x="55" y="298" text-anchor="middle">0</text>
+  <text class="label-sm" x="120" y="298" text-anchor="middle">10</text>
+  <text class="label-sm" x="185" y="298" text-anchor="middle">20</text>
+  <text class="label-sm" x="250" y="298" text-anchor="middle">30</text>
+  <text class="label-sm" x="310" y="298" text-anchor="middle">40+</text>
+
+  <!-- Grid lines -->
+  <line x1="120" y1="280" x2="120" y2="52" stroke="var(--border)" stroke-width="0.3" stroke-dasharray="3 3"/>
+  <line x1="185" y1="280" x2="185" y2="52" stroke="var(--border)" stroke-width="0.3" stroke-dasharray="3 3"/>
+  <line x1="250" y1="280" x2="250" y2="52" stroke="var(--border)" stroke-width="0.3" stroke-dasharray="3 3"/>
+
+  <!-- Transducer curve (fast drop) -->
+  <path d="M60 82 Q78 200,100 258 Q120 272,310 276" fill="none" stroke="var(--teal-400)" stroke-width="2.5" stroke-linecap="round"/>
+  <text class="label" x="220" y="268" fill="var(--teal-600)">Transducer (fast)</text>
+
+  <!-- Driver curve (slow drop) -->
+  <path d="M60 82 Q100 120,145 162 Q185 200,240 232 Q270 248,310 255" fill="none" stroke="var(--amber-400)" stroke-width="2.5" stroke-linecap="round"/>
+  <text class="label" x="220" y="244" fill="var(--amber-600)">Driver (slow)</text>
+
+  <!-- Full belief curve (tracks driver, dashed) -->
+  <path d="M60 82 Q95 115,140 158 Q180 198,235 230 Q265 244,310 252" fill="none" stroke="var(--blue-400)" stroke-width="1.8" stroke-dasharray="6 3" stroke-linecap="round"/>
+  <text class="label" x="220" y="220" fill="var(--blue-600)">Full belief</text>
+
+  <!-- Annotation: fast sync -->
+  <rect x="62" y="34" width="58" height="20" rx="4" fill="var(--bg2)" stroke="var(--border)" stroke-width="0.5"/>
+  <text class="label-sm" x="91" y="48" text-anchor="middle">~3 steps</text>
+  <line x1="91" y1="54" x2="91" y2="78" stroke="var(--text3)" stroke-width="0.5" stroke-dasharray="2 2"/>
+
+  <!-- Annotation: slow sync -->
+  <rect x="158" y="34" width="68" height="20" rx="4" fill="var(--bg2)" stroke="var(--border)" stroke-width="0.5"/>
+  <text class="label-sm" x="192" y="48" text-anchor="middle">~20 steps</text>
+  <line x1="192" y1="54" x2="192" y2="166" stroke="var(--text3)" stroke-width="0.5" stroke-dasharray="2 2"/>
+
+</svg>
+</div>
+</div>
+
+</div>
+
+<div class="note">
+  <strong>Left:</strong> Expected belief geometry projected from the 5-simplex. Two fractal clusters (one per driver regime) separated along the driver-belief axis, connected by a bridge of uncertain-driver points from early context positions.<br><br>
+  <strong>Right:</strong> Predicted probe MSE vs. context position. The transducer synchronizes within ~3 tokens (directly observable). The driver synchronizes over ~20 tokens (requires multi-token statistical evidence). The full belief MSE is bottlenecked by the driver — this timescale separation is the central novel prediction.
+</div>
+
+<h2>4. Falsifiable predictions</h2>
+
+<div class="pred"><span class="pred-n">P1</span><span>Full belief geometry is linearly recoverable from concatenated layers (R² > 0.8)</span></div>
+<div class="pred"><span class="pred-n">P2</span><span>Transducer marginal is well-represented in the final layer; driver marginal is weaker there</span></div>
+<div class="pred"><span class="pred-n">P3</span><span>Driver marginal is best represented in intermediate layers (2–3)</span></div>
+<div class="pred"><span class="pred-n">P4</span><span>Transducer MSE drops within 2–5 positions; driver MSE drops over 15–25 positions</span></div>
+<div class="pred"><span class="pred-n">P5</span><span>For pairs with d_next ≈ 0, represented distances still correlate with driver distances</span></div>
+<div class="pred"><span class="pred-n">P6</span><span>As |α_A − α_B| → 0, driver representation degrades; geometry collapses to single fractal</span></div>
+
+</div>
+</body>
+</html>
