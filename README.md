@@ -4,6 +4,10 @@
 
 A library for exploring sequence prediction models from a Computational Mechanics perspective.
 
+> ### 📑 Slides — [Transducer Belief Decomposition](docs/slides/transducer_experiment.pdf)
+> **MARS 4.0 briefing deck (PDF, 20 slides):** recovering input–HMM and output–transducer belief geometry in a transformer.
+> [View the slides »](docs/slides/transducer_experiment.pdf) · [LaTeX source](docs/slides/transducer_experiment.tex) · [full writeup](docs/transducer_decomposition_experiment.md)
+
 ## Belief State Geometry in Hierarchical Sequential Data
 
 An extension of [Shai et al. (NeurIPS 2024)](https://arxiv.org/abs/2405.15943) from flat HMMs to hierarchical HMMs with multi-timescale latent structure. A slow-switching driver (dwell ~20 steps) selects between two Mess3 transducer variants, creating a 6-state process where the transformer must simultaneously infer a fast variable (transducer state, observable in ~3 tokens) and a slow variable (driver identity, requiring ~15-30 tokens of statistical evidence).
@@ -18,6 +22,7 @@ A genuine input→output ε-transducer experiment (the feed-forward construction
 
 Staged via a single `INPUT_MODE` flag: Stage A (`'iid'`) isolates the transducer with an IID input (its SNS belief manifold is the countably-infinite mixed-state arc on the 1-simplex — an unambiguous reconstruction target); Stage B (`'sns'`/`'mess3'`) uses a structured input so both marginals are nontrivial. Adds an in-notebook entropy-rate floor and per-target untrained baselines.
 
+- **Slides:** [`docs/slides/transducer_experiment.pdf`](docs/slides/transducer_experiment.pdf) — MARS 4.0 briefing deck (source: [`docs/slides/transducer_experiment.tex`](docs/slides/transducer_experiment.tex))
 - Library: `driven_transducer`, `iid_sns_transducer`, `_sns_kernel` in [`simplexity/generative_processes/transition_matrices.py`](simplexity/generative_processes/transition_matrices.py) (+ tests)
 - Notebooks (torch+numpy only): feed-forward + coarse-graining regimes in [`notebooks/colab/transducer_decomposition_experiment.ipynb`](notebooks/colab/transducer_decomposition_experiment.ipynb); feedback / partially-observable (modified-operator MSP) in [`notebooks/colab/transducer_feedback_experiment.ipynb`](notebooks/colab/transducer_feedback_experiment.ipynb)
 - Writeup: [`docs/transducer_decomposition_experiment.md`](docs/transducer_decomposition_experiment.md)
